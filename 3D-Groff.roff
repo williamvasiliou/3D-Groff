@@ -1,0 +1,950 @@
+.nr float!1!s 1000
+.nr float!1!e 0
+.nr float!2!s 2000
+.nr float!2!e 0
+.nr float!255!s 2550
+.nr float!255!e 2
+.nr float!max!s 9999
+
+.nr cordic!0!s 7854
+.nr cordic!0!e (-1)
+.nr cordic!1!s 4636
+.nr cordic!1!e (-1)
+.nr cordic!2!s 2450
+.nr cordic!2!e (-1)
+.nr cordic!3!s 1244
+.nr cordic!3!e (-1)
+.nr cordic!4!s 6242
+.nr cordic!4!e (-2)
+.nr cordic!5!s 3124
+.nr cordic!5!e (-2)
+.nr cordic!6!s 1562
+.nr cordic!6!e (-2)
+.nr cordic!7!s 7812
+.nr cordic!7!e (-3)
+.nr cordic!8!s 3906
+.nr cordic!8!e (-3)
+.nr cordic!9!s 1953
+.nr cordic!9!e (-3)
+.nr cordic!10!s 9766
+.nr cordic!10!e (-4)
+.nr cordic!11!s 4883
+.nr cordic!11!e (-4)
+.nr cordic!12!s 2441
+.nr cordic!12!e (-4)
+.nr cordic!13!s 1221
+.nr cordic!13!e (-4)
+.nr cordic!14!s 6104
+.nr cordic!14!e (-5)
+.nr cordic!15!s 3052
+.nr cordic!15!e (-5)
+.nr cordic!k!s 6073
+.nr cordic!k!e (-1)
+
+.de abs
+.	if (\\n[\\$1] < 0) \{
+.		nr \\$1 (-\\n[\\$1])
+.	\}
+..
+
+.de shift-float-left
+.	nr \\$1!s (\\n[\\$1!s] * 10)
+.	nr \\$1!e -1
+.	nr s (\\n[\\$1!s])
+.	abs s
+.	if (\\ns < \n[float!1!s]) \{
+.		shift-float-left \\$1
+.	\}
+..
+
+.de shift-float-right
+.	nr \\$1!s (\\n[\\$1!s] / 10)
+.	nr \\$1!e +1
+.	nr s (\\n[\\$1!s])
+.	abs s
+.	if (\\ns > \n[float!max!s]) \{
+.		shift-float-right \\$1
+.	\}
+..
+
+.de shift-float
+.	if \A'\\$1' \{
+.		nr s (\\n[\\$1!s])
+.		ie (\\ns = 0) \{
+.			nr \\$1!e 0
+.		\}
+.		el \{
+.			abs s
+.			if (\\ns < \n[float!1!s]) \{
+.				shift-float-left \\$1
+.			\}
+.			if (\\ns > \n[float!max!s]) \{
+.				shift-float-right \\$1
+.			\}
+.		\}
+.	\}
+..
+
+.de mul-float
+.	if (\A'\\$1' & \A'\\$2' & \A'\\$3') \{
+.		nr \\$1!s ((\\n[\\$2!s] * \\n[\\$3!s]) / \n[float!1!s])
+.		nr \\$1!e (\\n[\\$2!e] + \\n[\\$3!e])
+.		shift-float \\$1
+.	\}
+..
+
+.de div-float
+.	if (\A'\\$1' & \A'\\$2' & \A'\\$3') \{
+.		nr \\$1!s ((\n[float!1!s] * \\n[\\$2!s]) / \\n[\\$3!s])
+.		nr \\$1!e (\\n[\\$2!e] - \\n[\\$3!e])
+.		shift-float \\$1
+.	\}
+..
+
+.de shift-int
+.	ie (\\n[\\$2] > 3) \{
+.		nr \\$1 0
+.	\}
+.	el \{
+.		if (\\n[\\$2] > 0) \{
+.			nr \\$1 (\\n[\\$1] / 10)
+.			nr \\$2 -1
+.			shift-int \\$1 \\$2
+.		\}
+.	\}
+..
+
+.de add-float
+.	if (\A'\\$1' & \A'\\$2' & \A'\\$3') \{
+.		nr e2 (\\n[\\$2!e])
+.		nr e3 (\\n[\\$3!e])
+.		ie (\\n[e2] > \\n[e3]) \{
+.			nr \\$1!e (\\n[e2])
+.			nr s (\\n[\\$3!s])
+.			nr e (\\n[e2] - \\n[e3])
+.			shift-int s e
+.			nr \\$1!s (\\n[\\$2!s] + \\n[s])
+.		\}
+.		el \{
+.			nr \\$1!e (\\n[e3])
+.			nr s (\\n[\\$2!s])
+.			nr e (\\n[e3] - \\n[e2])
+.			shift-int s e
+.			nr \\$1!s (\\n[\\$3!s] + \\n[s])
+.		\}
+.		shift-float \\$1
+.	\}
+..
+
+.de sub-float
+.	if (\A'\\$1' & \A'\\$2' & \A'\\$3') \{
+.		nr \\$3!s (-\\n[\\$3!s])
+.		add-float \\$1 \\$2 \\$3
+.		nr \\$3!s (-\\n[\\$3!s])
+.	\}
+..
+
+.de sqrt
+.	if (\\n[\\$1!r!s] > 0) \{
+.		nr \\$1!t!s ((2 * \\n[\\$1!s] * \\n[\\$1!d!s]) + (\\n[\\$1!d!s] * \\n[\\$1!d!s]))
+.		nr \\$1!t!s (\\n[\\$1!t!s] / \n[float!1!s])
+.		ie (\\n[\\$1!r!s] < \\n[\\$1!t!s]) \{
+.			nr \\$1!d!s (\\n[\\$1!d!s] / 10)
+.			if (\\n[\\$1!d!s] > 0) \{
+.				sqrt \\$1
+.			\}
+.		\}
+.		el \{
+.			nr \\$1!r!s -\\n[\\$1!t!s]
+.			nr \\$1!s +\\n[\\$1!d!s]
+.			sqrt \\$1
+.		\}
+.	\}
+..
+
+.de sqrt-float
+.	if (\A'\\$1' & \A'\\$2') \{
+.		nr \\$1!s 0
+.		nr \\$1!e (\\n[\\$2!e] / 2)
+.		nr \\$1!r!s (\\n[\\$2!s])
+.		nr \\$1!r!e 0
+.		nr \\$1!d!s (\n[float!1!s])
+.		nr \\$1!d!e (\n[float!1!e])
+.		sqrt \\$1
+.		ie (\\n[\\$2!e] < 0) \{
+.			if (-\\n[\\$2!e] % 2) \{
+.				nr \\$1!s ((\\n[\\$1!s] * 3162) / \n[float!1!s])
+.				nr \\$1!e -1
+.			\}
+.		\}
+.		el \{
+.			if (\\n[\\$2!e] % 2) \{
+.				nr \\$1!s ((\\n[\\$1!s] * 3162) / \n[float!1!s])
+.			\}
+.		\}
+.		shift-float \\$1
+.	\}
+..
+
+.de cordic
+.	if (\\n[\\$3] < 16) \{
+.		nr \\$1!cos!s (\\n[\\$1!x!s])
+.		nr \\$1!cos!e (\\n[\\$1!x!e])
+.		nr \\$1!sin!s (\\n[\\$1!y!s])
+.		nr \\$1!sin!e (\\n[\\$1!y!e])
+.		mul-float \\$1!x \\$1!z \\$1!cos
+.		mul-float \\$1!y \\$1!z \\$1!sin
+.		ie (\\n[\\$2!s] > 0) \{
+.			sub-float \\$2 \\$2 cordic!\\n[\\$3]
+.			sub-float cordic!x \\$1!cos \\$1!y
+.			add-float cordic!y \\$1!x \\$1!sin
+.		\}
+.		el \{
+.			add-float \\$2 \\$2 cordic!\\n[\\$3]
+.			add-float cordic!x \\$1!cos \\$1!y
+.			sub-float cordic!y \\$1!sin \\$1!x
+.		\}
+.		nr \\$1!x!s (\\n[cordic!x!s])
+.		nr \\$1!x!e (\\n[cordic!x!e])
+.		nr \\$1!y!s (\\n[cordic!y!s])
+.		nr \\$1!y!e (\\n[cordic!y!e])
+.		div-float \\$1!z \\$1!z \\$1!d
+.		nr \\$3 +1
+.		cordic \\$1 \\$2 \\$3
+.	\}
+..
+
+.de cordic-float
+.	if (\A'\\$1' & \A'\\$2') \{
+.		nr \\$1!x!s (\\n[cordic!k!s])
+.		nr \\$1!x!e (\\n[cordic!k!e])
+.		nr \\$1!y!s 0
+.		nr \\$1!y!e 0
+.		nr \\$1!z!s (\n[float!1!s])
+.		nr \\$1!z!e (\n[float!1!e])
+.		nr \\$1!d!s (\n[float!2!s])
+.		nr \\$1!d!e (\n[float!2!e])
+.		nr \\$1!angle!s (\\n[\\$2!s])
+.		nr \\$1!angle!e (\\n[\\$2!e])
+.		nr cordic!i 0
+.		cordic \\$1 \\$1!angle cordic!i
+.		shift-float \\$1!x
+.		shift-float \\$1!y
+.	\}
+..
+
+.de float
+.	if \A'\\$1' \{
+.		ie \B'\\$2' \{
+.			nr \\$1!s (\\$2)
+.		\}
+.		el \{
+.			nr \\$1!s 0
+.		\}
+.		ie \B'\\$3' \{
+.			nr \\$1!e (\\$3)
+.		\}
+.		el \{
+.			nr \\$1!e 0
+.		\}
+.		shift-float \\$1
+.	\}
+..
+
+.de round
+.	if \A'\\$1' \{
+.		ie (\\n[\\$1!e] = 0) \{
+.			nr \\$1 (\\n[\\$1!s] / \n[float!1!s])
+.			if (\\n[\\$1!s] > \n[float!max!s]) \{
+.				shift-float-right \\$1
+.			\}
+.		\}
+.		el \{
+.			ie (\\n[\\$1!e] > 0) \{
+.				ie (\\n[\\$1!e] < 6) \{
+.					nr \\$1!s (\\n[\\$1!s] * 10)
+.					nr \\$1!e -1
+.					round \\$1
+.				\}
+.				el \{
+.					nr \\$1 0
+.				\}
+.			\}
+.			el \{
+.				nr \\$1 0
+.			\}
+.		\}
+.	\}
+..
+
+.de copy-float
+.	if (\A'\\$1' & \A'\\$2') \{
+.		nr \\$1!s (\\n[\\$2!s])
+.		nr \\$1!e (\\n[\\$2!e])
+.	\}
+..
+
+.de vec
+.	if \A'\\$1' \{
+.		ie \B'\\$2' \{
+.			nr \\$1!x!s (\\$2)
+.			nr \\$1!x!e 0
+.		\}
+.		el \{
+.			nr \\$1!x!s 0
+.			nr \\$1!x!e 0
+.		\}
+.		shift-float \\$1!x
+.		ie \B'\\$3' \{
+.			nr \\$1!y!s (\\$3)
+.			nr \\$1!y!e 0
+.		\}
+.		el \{
+.			nr \\$1!y!s 0
+.			nr \\$1!y!e 0
+.		\}
+.		shift-float \\$1!y
+.		ie \B'\\$4' \{
+.			nr \\$1!z!s (\\$4)
+.			nr \\$1!z!e 0
+.		\}
+.		el \{
+.			nr \\$1!z!s 0
+.			nr \\$1!z!e 0
+.		\}
+.		shift-float \\$1!z
+.		ie \B'\\$5' \{
+.			nr \\$1!w!s (\\$5)
+.			nr \\$1!w!e 0
+.		\}
+.		el \{
+.			nr \\$1!w!s 0
+.			nr \\$1!w!e 0
+.		\}
+.		shift-float \\$1!w
+.	\}
+..
+
+.de add-vec
+.	if (\A'\\$1' & \A'\\$2' & \A'\\$3') \{
+.		add-float \\$1!x \\$2!x \\$3!x
+.		add-float \\$1!y \\$2!y \\$3!y
+.		add-float \\$1!z \\$2!z \\$3!z
+.		add-float \\$1!w \\$2!w \\$3!w
+.	\}
+..
+
+.de sub-vec
+.	if (\A'\\$1' & \A'\\$2' & \A'\\$3') \{
+.		sub-float \\$1!x \\$2!x \\$3!x
+.		sub-float \\$1!y \\$2!y \\$3!y
+.		sub-float \\$1!z \\$2!z \\$3!z
+.		sub-float \\$1!w \\$2!w \\$3!w
+.	\}
+..
+
+.de mul-vec
+.	if (\A'\\$1' & \A'\\$2' & \A'\\$3') \{
+.		mul-float \\$1!x \\$2!x \\$3
+.		mul-float \\$1!y \\$2!y \\$3
+.		mul-float \\$1!z \\$2!z \\$3
+.		mul-float \\$1!w \\$2!w \\$3
+.	\}
+..
+
+.de dot-vec
+.	if (\A'\\$1' & \A'\\$2' & \A'\\$3') \{
+.		mul-float \\$1!x \\$2!x \\$3!x
+.		mul-float \\$1!y \\$2!y \\$3!y
+.		mul-float \\$1!z \\$2!z \\$3!z
+.		mul-float \\$1!w \\$2!w \\$3!w
+.		add-float \\$1!x \\$1!x \\$1!y
+.		add-float \\$1!y \\$1!z \\$1!w
+.		add-float \\$1 \\$1!x \\$1!y
+.	\}
+..
+
+.de len-vec
+.	if (\A'\\$1' & \A'\\$2') \{
+.		dot-vec \\$1 \\$2 \\$2
+.		sqrt-float \\$1!length \\$1
+.		nr \\$1!s (\\n[\\$1!length!s])
+.		nr \\$1!e (\\n[\\$1!length!e])
+.	\}
+..
+
+.de copy-vec
+.	if (\A'\\$1' & \A'\\$2') \{
+.		copy-float \\$1!x \\$2!x
+.		copy-float \\$1!y \\$2!y
+.		copy-float \\$1!z \\$2!z
+.		copy-float \\$1!w \\$2!w
+.	\}
+..
+
+.de mat
+.	if (\A'\\$1' & \A'\\$2' & \A'\\$3' & \A'\\$4' & \A'\\$5') \{
+.		copy-vec \\$1!0 \\$2
+.		copy-vec \\$1!1 \\$3
+.		copy-vec \\$1!2 \\$4
+.		copy-vec \\$1!3 \\$5
+.	\}
+..
+
+.de translate
+.	if (\A'\\$1' & \A'\\$2') \{
+.		vec \\$1!0 \n[float!1!s]
+.		vec \\$1!1 0 \n[float!1!s]
+.		vec \\$1!2 0 0 \n[float!1!s]
+.		nr \\$1!3!x!s (\\n[\\$2!x!s])
+.		nr \\$1!3!x!e (\\n[\\$2!x!e])
+.		nr \\$1!3!y!s (\\n[\\$2!y!s])
+.		nr \\$1!3!y!e (\\n[\\$2!y!e])
+.		nr \\$1!3!z!s (\\n[\\$2!z!s])
+.		nr \\$1!3!z!e (\\n[\\$2!z!e])
+.		nr \\$1!3!w!s (\n[float!1!s])
+.		nr \\$1!3!w!e (\n[float!1!e])
+.	\}
+..
+
+.de roll
+.	if (\A'\\$1' & \A'\\$2') \{
+.		cordic-float \\$1!cordic \\$2
+.		nr \\$1!0!x!s (\\n[\\$1!cordic!x!s])
+.		nr \\$1!0!x!e (\\n[\\$1!cordic!x!e])
+.		nr \\$1!0!y!s (\\n[\\$1!cordic!y!s])
+.		nr \\$1!0!y!e (\\n[\\$1!cordic!y!e])
+.		nr \\$1!0!z!s 0
+.		nr \\$1!0!z!e 0
+.		nr \\$1!0!w!s 0
+.		nr \\$1!0!w!e 0
+.		vec \\$1!1 0 \n[float!1!s]
+.		nr \\$1!2!x!s (-\\n[\\$1!cordic!y!s])
+.		nr \\$1!2!x!e (\\n[\\$1!cordic!y!e])
+.		nr \\$1!2!y!s (\\n[\\$1!cordic!x!s])
+.		nr \\$1!2!y!e (\\n[\\$1!cordic!x!e])
+.		nr \\$1!2!z!s 0
+.		nr \\$1!2!z!e 0
+.		nr \\$1!2!w!s 0
+.		nr \\$1!2!w!e 0
+.		vec \\$1!3 0 0 0 \n[float!1!s]
+.	\}
+..
+
+.de pitch
+.	if (\A'\\$1' & \A'\\$2') \{
+.		cordic-float \\$1!cordic \\$2
+.		vec \\$1!0 \n[float!1!s]
+.		nr \\$1!1!x!s 0
+.		nr \\$1!1!x!e 0
+.		nr \\$1!1!y!s (\\n[\\$1!cordic!x!s])
+.		nr \\$1!1!y!e (\\n[\\$1!cordic!x!e])
+.		nr \\$1!1!z!s (\\n[\\$1!cordic!y!s])
+.		nr \\$1!1!z!e (\\n[\\$1!cordic!y!e])
+.		nr \\$1!1!w!s 0
+.		nr \\$1!1!w!e 0
+.		nr \\$1!2!x!s 0
+.		nr \\$1!2!x!e 0
+.		nr \\$1!2!y!s (-\\n[\\$1!cordic!y!s])
+.		nr \\$1!2!y!e (\\n[\\$1!cordic!y!e])
+.		nr \\$1!2!z!s (\\n[\\$1!cordic!x!s])
+.		nr \\$1!2!z!e (\\n[\\$1!cordic!x!e])
+.		nr \\$1!2!w!s 0
+.		nr \\$1!2!w!e 0
+.		vec \\$1!3 0 0 0 \n[float!1!s]
+.	\}
+..
+
+.de yaw
+.	if (\A'\\$1' & \A'\\$2') \{
+.		cordic-float \\$1!cordic \\$2
+.		nr \\$1!0!x!s (\\n[\\$1!cordic!x!s])
+.		nr \\$1!0!x!e (\\n[\\$1!cordic!x!e])
+.		nr \\$1!0!y!s 0
+.		nr \\$1!0!y!e 0
+.		nr \\$1!0!z!s (-\\n[\\$1!cordic!y!s])
+.		nr \\$1!0!z!e (\\n[\\$1!cordic!y!e])
+.		nr \\$1!0!w!s 0
+.		nr \\$1!0!w!e 0
+.		vec \\$1!1 0 \n[float!1!s]
+.		nr \\$1!2!x!s (\\n[\\$1!cordic!y!s])
+.		nr \\$1!2!x!e (\\n[\\$1!cordic!y!e])
+.		nr \\$1!2!y!s 0
+.		nr \\$1!2!y!e 0
+.		nr \\$1!2!z!s (\\n[\\$1!cordic!x!s])
+.		nr \\$1!2!z!e (\\n[\\$1!cordic!x!e])
+.		nr \\$1!2!w!s 0
+.		nr \\$1!2!w!e 0
+.		vec \\$1!3 0 0 0 \n[float!1!s]
+.	\}
+..
+
+.de scale
+.	if (\A'\\$1' & \A'\\$2') \{
+.		nr \\$1!0!x!s (\\n[\\$2!x!s])
+.		nr \\$1!0!x!e (\\n[\\$2!x!e])
+.		nr \\$1!0!y!s 0
+.		nr \\$1!0!y!e 0
+.		nr \\$1!0!z!s 0
+.		nr \\$1!0!z!e 0
+.		nr \\$1!0!w!s 0
+.		nr \\$1!0!w!e 0
+.		nr \\$1!1!x!s 0
+.		nr \\$1!1!x!e 0
+.		nr \\$1!1!y!s (\\n[\\$2!y!s])
+.		nr \\$1!1!y!e (\\n[\\$2!y!e])
+.		nr \\$1!1!z!s 0
+.		nr \\$1!1!z!e 0
+.		nr \\$1!1!w!s 0
+.		nr \\$1!1!w!e 0
+.		nr \\$1!2!x!s 0
+.		nr \\$1!2!x!e 0
+.		nr \\$1!2!y!s 0
+.		nr \\$1!2!y!e 0
+.		nr \\$1!2!z!s (\\n[\\$2!z!s])
+.		nr \\$1!2!z!e (\\n[\\$2!z!e])
+.		nr \\$1!2!w!s 0
+.		nr \\$1!2!w!e 0
+.		nr \\$1!3!x!s 0
+.		nr \\$1!3!x!e 0
+.		nr \\$1!3!y!s 0
+.		nr \\$1!3!y!e 0
+.		nr \\$1!3!z!s 0
+.		nr \\$1!3!z!e 0
+.		nr \\$1!3!w!s (\n[float!1!s])
+.		nr \\$1!3!w!e (\n[float!1!e])
+.	\}
+..
+
+.de perspective
+.	if (\A'\\$1' & \A'\\$2' & \A'\\$3' & \A'\\$4' & \A'\\$5') \{
+.		cordic-float \\$1!cordic \\$2
+.		div-float \\$1!cot \\$1!cordic!x \\$1!cordic!y
+.		div-float \\$1!0!x \\$1!cot \\$3
+.		nr \\$1!0!y!s 0
+.		nr \\$1!0!y!e 0
+.		nr \\$1!0!z!s 0
+.		nr \\$1!0!z!e 0
+.		nr \\$1!0!w!s 0
+.		nr \\$1!0!w!e 0
+.		nr \\$1!1!x!s 0
+.		nr \\$1!1!x!e 0
+.		nr \\$1!1!y!s (\\n[\\$1!cot!s])
+.		nr \\$1!1!y!e (\\n[\\$1!cot!e])
+.		nr \\$1!1!z!s 0
+.		nr \\$1!1!z!e 0
+.		nr \\$1!1!w!s 0
+.		nr \\$1!1!w!e 0
+.		add-float \\$1!add \\$4 \\$5
+.		sub-float \\$1!sub \\$4 \\$5
+.		nr \\$1!2!x!s 0
+.		nr \\$1!2!x!e 0
+.		nr \\$1!2!y!s 0
+.		nr \\$1!2!y!e 0
+.		div-float \\$1!2!z \\$1!add \\$1!sub
+.		nr \\$1!2!w!s (-\n[float!1!s])
+.		nr \\$1!2!w!e (\n[float!1!e])
+.		mul-float \\$1!mul \\$4 \\$5
+.		mul-float \\$1!mul \\$1!mul float!2
+.		nr \\$1!3!x!s 0
+.		nr \\$1!3!x!e 0
+.		nr \\$1!3!y!s 0
+.		nr \\$1!3!y!e 0
+.		div-float \\$1!3!z \\$1!mul \\$1!sub
+.		nr \\$1!3!w!s 0
+.		nr \\$1!3!w!e 0
+.	\}
+..
+
+.de mat-vec
+.	if (\A'\\$1' & \A'\\$2' & \A'\\$3') \{
+.		mul-vec \\$1!0 \\$2!0 \\$3!x
+.		mul-vec \\$1!1 \\$2!1 \\$3!y
+.		mul-vec \\$1!2 \\$2!2 \\$3!z
+.		mul-vec \\$1!3 \\$2!3 \\$3!w
+.		add-vec \\$1!x \\$1!0 \\$1!1
+.		add-vec \\$1!y \\$1!2 \\$1!3
+.		add-vec \\$1 \\$1!x \\$1!y
+.	\}
+..
+
+.de mul
+.	if (\A'\\$1' & \A'\\$2' & \A'\\$3') \{
+.		mat-vec \\$1!0 \\$2 \\$3!0
+.		mat-vec \\$1!1 \\$2 \\$3!1
+.		mat-vec \\$1!2 \\$2 \\$3!2
+.		mat-vec \\$1!3 \\$2 \\$3!3
+.	\}
+..
+
+.de camera
+.	if (\A'\\$1' & \A'\\$2' & \A'\\$3' & \A'\\$4' & \A'\\$5') \{
+.		nr \\$1!zNear!s (\n[float!1!s])
+.		nr \\$1!zNear!e (\n[float!1!e] - 1)
+.		nr \\$1!zFar!s (\n[float!1!s])
+.		nr \\$1!zFar!e (\n[float!1!e] + 2)
+.		vec \\$1!scale (\n[float!2!s]) (\n[float!2!s]) (\n[float!2!s])
+.		perspective \\$1!projection \\$4 \\$5 \\$1!zNear \\$1!zFar
+.		translate \\$1!view!translate \\$2
+.		pitch \\$1!view!pitch \\$3!y
+.		yaw \\$1!view!yaw \\$3!x
+.		scale \\$1!model \\$1!scale
+.		mul \\$1!view!rotate \\$1!view!pitch \\$1!view!yaw
+.		mul \\$1!view \\$1!view!translate \\$1!view!rotate
+.		mul \\$1!modelview \\$1!view \\$1!model
+.		mul \\$1 \\$1!projection \\$1!modelview
+.	\}
+..
+
+.de color-code
+.	ie (\\n[\\$1] > 0) \{
+.		ie (\\n[\\$1] < 256) \{
+.			nr \\$1!0 ((\\n[\\$1] / 16) % 16)
+.			nr \\$1!1 (\\n[\\$1] % 16)
+.			af \\$1!0 0
+.			ie (\\n[\\$1!0] < 10) \{
+.				as \\$1 \\n[\\$1!0]\"
+.			\}
+.			el \{
+.				af \\$1!0 A
+.				nr \\$1!0 -9
+.				as \\$1 \\n[\\$1!0]\"
+.			\}
+.			af \\$1!1 0
+.			ie (\\n[\\$1!1] < 10) \{
+.				as \\$1 \\n[\\$1!1]\"
+.			\}
+.			el \{
+.				af \\$1!1 A
+.				nr \\$1!1 -9
+.				as \\$1 \\n[\\$1!1]\"
+.			\}
+.		\}
+.		el \{
+.			as \\$1 FF\"
+.		\}
+.	\}
+.	el \{
+.		as \\$1 00\"
+.	\}
+..
+
+.de buffer-color
+.	if \A'\\$1' \{
+.		ds \\$1 #\"
+.		nr \\$1 (\\n[\\$1!r])
+.		color-code \\$1
+.		nr \\$1 (\\n[\\$1!g])
+.		color-code \\$1
+.		nr \\$1 (\\n[\\$1!b])
+.		color-code \\$1
+.	\}
+..
+
+.de buffer-column
+.	if (\\n[\\$1!buffer!column] < \\n[\\$1!width]) \{
+.		ds \\$1!fragment \\$1!buffer!\\n[\\$1!buffer!row]!\\n[\\$1!buffer!column]\"
+.		ds \\*[\\$1!fragment] .\"
+.		nr \\*[\\$1!fragment]!depth!s (\n[float!1!s])
+.		nr \\*[\\$1!fragment]!depth!e (\n[float!1!e])
+.		nr \\*[\\$1!fragment]!color!r 0
+.		nr \\*[\\$1!fragment]!color!g 0
+.		nr \\*[\\$1!fragment]!color!b 0
+.		nr \\$1!buffer!column +1
+.		buffer-column \\$1
+.	\}
+..
+
+.de buffer
+.	if (\\n[\\$1!buffer!row] < \\n[\\$1!height]) \{
+.		nr \\$1!buffer!column 0
+.		buffer-column \\$1
+.		nr \\$1!buffer!row +1
+.		buffer \\$1
+.	\}
+..
+
+.de viewport
+.	if (\A'\\$1' & \B'\\$2' & \B'\\$3' & \B'\\$4' & \B'\\$5' & \B'\\$6' & \B'\\$7' & (\\$2 > 0) & (\\$3 > 0)) \{
+.		nr \\$1!width (\\$2)
+.		nr \\$1!height (\\$3)
+.		nr \\$1!buffer!row 0
+.		buffer \\$1
+.		nr \\$1!width!s (\\n[\\$1!width] * \n[float!1!s])
+.		nr \\$1!width!e (\n[float!1!e])
+.		shift-float \\$1!width
+.		nr \\$1!height!s (\\n[\\$1!height] * \n[float!1!s])
+.		nr \\$1!height!e (\n[float!1!e])
+.		shift-float \\$1!height
+.		ie (\\n[\\$1!width] < \\n[\\$1!height]) \{
+.			div-float \\$1!delta float!2 \\$1!height
+.		\}
+.		el \{
+.			div-float \\$1!delta float!2 \\$1!width
+.		\}
+.		nr \\$1!translate!s (-6 * \n[float!1!s])
+.		nr \\$1!translate!e (\n[float!1!e])
+.		vec \\$1!translate 0 0 \\n[\\$1!translate!s]
+.		nr \\$1!rotate ((100 * ((3600 * \\n[hours]) + (60 * \\n[minutes]) + \\n[seconds])) % 7854)
+.		nr \\$1!rotate!x!s (2 * \\n[\\$1!rotate])
+.		nr \\$1!rotate!x!e (-1)
+.		nr \\$1!rotate!y!s (-\\n[\\$1!rotate])
+.		nr \\$1!rotate!y!e (-1)
+.		nr \\$1!fovy!s (\\$4)
+.		nr \\$1!fovy!e (\\$5)
+.		shift-float \\$1!fovy
+.		nr \\$1!aspect!s (\\$6)
+.		nr \\$1!aspect!e (\\$7)
+.		shift-float \\$1!aspect
+.		mul-float \\$1!aspect \\$1!aspect \\$1!width
+.		div-float \\$1!aspect \\$1!aspect \\$1!height
+.		camera \\$1!camera \\$1!translate \\$1!rotate \\$1!fovy \\$1!aspect
+.	\}
+..
+
+.de camera-elements
+.	if (\\n[\\$3] < \\$4) \{
+.		mat-vec \\$2!vertices!\\n[\\$3]!camera \\$1!camera \\$2!vertices!\\n[\\$3]
+.		div-float \\$2!vertices!\\n[\\$3]!camera!x \\$2!vertices!\\n[\\$3]!camera!x \\$2!vertices!\\n[\\$3]!camera!w
+.		div-float \\$2!vertices!\\n[\\$3]!camera!y \\$2!vertices!\\n[\\$3]!camera!y \\$2!vertices!\\n[\\$3]!camera!w
+.		div-float \\$2!vertices!\\n[\\$3]!camera!z \\$2!vertices!\\n[\\$3]!camera!z \\$2!vertices!\\n[\\$3]!camera!w
+.		div-float \\$2!vertices!\\n[\\$3]!camera!w \\$2!vertices!\\n[\\$3]!camera!w \\$2!vertices!\\n[\\$3]!camera!w
+.		nr \\$3 +1
+.		camera-elements \\$1 \\$2 \\$3 \\$4
+.	\}
+..
+
+.de render-elements
+.	if (\\n[\\$3] < \\$4) \{
+.		nr \\$2!A \\n[\\$2!elements!\\n[\\$3]!0]
+.		nr \\$2!B \\n[\\$2!elements!\\n[\\$3]!1]
+.		nr \\$2!C \\n[\\$2!elements!\\n[\\$3]!2]
+.		triangle \\$1 \\$2!vertices!\\n[\\$2!A]!camera \\$2!vertices!\\n[\\$2!B]!camera \\$2!vertices!\\n[\\$2!C]!camera \\$2!vertices!\\n[\\$2!A]!color \\$2!vertices!\\n[\\$2!B]!color \\$2!vertices!\\n[\\$2!C]!color \\n[\\$3]
+.		nr \\$3 +1
+.		render-elements \\$1 \\$2 \\$3 \\$4
+.	\}
+..
+
+.de render
+.	if (\A'\\$1' & \A'\\$2') \{
+.		nr \\$2!elements 0
+.		camera-elements \\$1 \\$2 \\$2!elements \\n[\\$2!vertices!size]
+.		nr \\$2!elements 0
+.		render-elements \\$1 \\$2 \\$2!elements \\n[\\$2!elements!size]
+.	\}
+..
+
+.de fragment
+.	nr \\*[\\$1]!depth!s (\\n[\\$2!s])
+.	nr \\*[\\$1]!depth!e (\\n[\\$2!e])
+.	nr \\*[\\$1]!color!r (\\n[\\$3!r])
+.	nr \\*[\\$1]!color!g (\\n[\\$3!g])
+.	nr \\*[\\$1]!color!b (\\n[\\$3!b])
+.	ds \\*[\\$1] \\*[\\$4]\"
+.	substring \\*[\\$1] 0 0
+..
+
+.de add-fragment
+.	if ((\\n[\\$1!triangle!x] > -1) & (\\n[\\$1!triangle!x] < \\n[\\$1!width]) & (\\n[\\$1!triangle!y] > -1) & (\\n[\\$1!triangle!y] < \\n[\\$1!height]) & (\\n[\\$1!V!z!e] < 1)) \{
+.		ds \\$1!fragment \\$1!buffer!\\n[\\$1!triangle!y]!\\n[\\$1!triangle!x]\"
+.		ie (\\n[\\$1!V!z!e] = \\n[\\*[\\$1!fragment]!depth!e]) \{
+.			if (\\n[\\$1!V!z!s] < \\n[\\*[\\$1!fragment]!depth!s]) \{
+.				fragment \\$1!fragment \\$1!V!z \\$1!triangle!color \\$1!character
+.			\}
+.		\}
+.		el \{
+.			ie ((\\n[\\$1!V!z!s] <= 0) & (\\n[\\*[\\$1!fragment]!depth!s] >= 0)) \{
+.				fragment \\$1!fragment \\$1!V!z \\$1!triangle!color \\$1!character
+.			\}
+.			el \{
+.				ie ((\\n[\\$1!V!z!s] >= 0) & (\\n[\\*[\\$1!fragment]!depth!s] > 0) & (\\n[\\$1!V!z!e] < \\n[\\*[\\$1!fragment]!depth!e])) \{
+.					fragment \\$1!fragment \\$1!V!z \\$1!triangle!color \\$1!character
+.				\}
+.				el \{
+.					if ((\\n[\\$1!V!z!s] < 0) & (\\n[\\*[\\$1!fragment]!depth!s] < 0) & (\\n[\\$1!V!z!e] > \\n[\\*[\\$1!fragment]!depth!e])) \{
+.						fragment \\$1!fragment \\$1!V!z \\$1!triangle!color \\$1!character
+.					\}
+.				\}
+.			\}
+.		\}
+.	\}
+..
+
+.de triangle-dy2
+.	add-float \\$1!y3 \\$1!y1 \\$1!y2
+.	if ((\\n[\\$1!y3!s] = 0) : (\\n[\\$1!y3!e] < 0)) \{
+.		add-float \\$1!triangle!x \\$1!V!x float!1
+.		mul-float \\$1!triangle!x \\$1!triangle!x \\$1!width
+.		div-float \\$1!triangle!x \\$1!triangle!x float!2
+.		round \\$1!triangle!x
+.		sub-float \\$1!triangle!y float!1 \\$1!V!y
+.		mul-float \\$1!triangle!y \\$1!triangle!y \\$1!height
+.		div-float \\$1!triangle!y \\$1!triangle!y float!2
+.		round \\$1!triangle!y
+.		mul-float \\$1!triangle!color!r \\$1!V!color!x float!255
+.		round \\$1!triangle!color!r
+.		mul-float \\$1!triangle!color!g \\$1!V!color!y float!255
+.		round \\$1!triangle!color!g
+.		mul-float \\$1!triangle!color!b \\$1!V!color!z float!255
+.		round \\$1!triangle!color!b
+.		add-fragment \\$1
+.		add-vec \\$1!V \\$1!V \\$1!v
+.		add-vec \\$1!V!color \\$1!V!color \\$1!v!color
+.		add-float \\$1!y2 \\$1!y2 \\$1!dy2
+.		triangle-dy2 \\$1
+.	\}
+..
+
+.de triangle-dy1
+.	if ((\\n[\\$1!y1!s] = 0) : (\\n[\\$1!y1!e] < 0)) \{
+.		copy-vec \\$1!V \\$1!U
+.		copy-vec \\$1!V!color \\$1!U!color
+.		nr \\$1!y2!s 0
+.		nr \\$1!y2!e 0
+.		triangle-dy2 \\$1
+.		add-vec \\$1!U \\$1!U \\$1!u
+.		add-vec \\$1!U!color \\$1!U!color \\$1!u!color
+.		add-float \\$1!y1 \\$1!y1 \\$1!dy1
+.		triangle-dy1 \\$1
+.	\}
+..
+
+.de triangle
+.	if (\A'\\$1' & \A'\\$2' & \A'\\$3' & \A'\\$4' & \A'\\$5' & \A'\\$6' & \A'\\$7') \{
+.		sub-vec \\$1!u \\$3 \\$2
+.		sub-vec \\$1!v \\$4 \\$2
+.		sub-vec \\$1!u!color \\$6 \\$5
+.		sub-vec \\$1!v!color \\$7 \\$5
+.		len-vec \\$1!IIuII \\$1!u
+.		len-vec \\$1!IIvII \\$1!v
+.		if ((\\n[\\$1!IIuII!s] > 0) & (\\n[\\$1!IIvII!s] > 0)) \{
+.			div-float \\$1!dy1 \\$1!delta \\$1!IIuII
+.			ie (\\n[\\$1!dy1!e] > 0) \{
+.				nr \\$1!dy1!s (\n[float!1!s])
+.				nr \\$1!dy1!e (\n[float!1!e])
+.			\}
+.			el \{
+.				if ((\\n[\\$1!dy1!s] > \n[float!1!s]) & (\\n[\\$1!dy1!e] = 0)) \{
+.					nr \\$1!dy1!s (\n[float!1!s])
+.					nr \\$1!dy1!e (\n[float!1!e])
+.				\}
+.			\}
+.			div-float \\$1!dy2 \\$1!delta \\$1!IIvII
+.			ie (\\n[\\$1!dy2!e] > 0) \{
+.				nr \\$1!dy2!s (\n[float!1!s])
+.				nr \\$1!dy2!e (\n[float!1!e])
+.			\}
+.			el \{
+.				if ((\\n[\\$1!dy2!s] > \n[float!1!s]) & (\\n[\\$1!dy2!e] = 0)) \{
+.					nr \\$1!dy2!s (\n[float!1!s])
+.					nr \\$1!dy2!e (\n[float!1!e])
+.				\}
+.			\}
+.			mul-vec \\$1!u \\$1!u \\$1!dy1
+.			mul-vec \\$1!v \\$1!v \\$1!dy2
+.			mul-vec \\$1!u!color \\$1!u!color \\$1!dy1
+.			mul-vec \\$1!v!color \\$1!v!color \\$1!dy2
+.			copy-vec \\$1!U \\$2
+.			copy-vec \\$1!U!color \\$5
+.			nr \\$1!y1!s 0
+.			nr \\$1!y1!e 0
+.			ds \\$1!character \\$8\"
+.			triangle-dy1 \\$1
+.		\}
+.	\}
+..
+
+.de log-column
+.	if (\\n[\\$1!buffer!column] < \\n[\\$1!width]) \{
+.		ds \\$1!fragment \\$1!buffer!\\n[\\$1!buffer!row]!\\n[\\$1!buffer!column]\"
+.		buffer-color \\*[\\$1!fragment]!color
+.		defcolor \\*[\\$1!fragment] rgb \\*[\\*[\\$1!fragment]!color]
+.		as \\$1!buffer \\m[\\*[\\$1!fragment]]\\*[\\*[\\$1!fragment]]\\m[]\"
+.		nr \\$1!buffer!column +1
+.		log-column \\$1
+.	\}
+..
+
+.de log-row
+.	if (\\n[\\$1!buffer!row] < \\n[\\$1!height]) \{
+.		nr \\$1!buffer!column 0
+.		ds \\$1!buffer "\"
+.		log-column \\$1
+.		rt
+\\*[\\$1!buffer]
+.		br
+.		mk
+.		nr \\$1!buffer!row +1
+.		log-row \\$1
+.	\}
+..
+
+.de log
+.	if \A'\\$1' \{
+.		nr \\$1!buffer!row 0
+.		mk
+.		log-row \\$1
+.	\}
+..
+
+.vec cube!vertices!0 -\n[float!1!s] -\n[float!1!s] \n[float!1!s] \n[float!1!s]
+.vec cube!vertices!1 \n[float!1!s] -\n[float!1!s] \n[float!1!s] \n[float!1!s]
+.vec cube!vertices!2 \n[float!1!s] -\n[float!1!s] -\n[float!1!s] \n[float!1!s]
+.vec cube!vertices!3 -\n[float!1!s] -\n[float!1!s] -\n[float!1!s] \n[float!1!s]
+.vec cube!vertices!4 -\n[float!1!s] \n[float!1!s] \n[float!1!s] \n[float!1!s]
+.vec cube!vertices!5 \n[float!1!s] \n[float!1!s] \n[float!1!s] \n[float!1!s]
+.vec cube!vertices!6 \n[float!1!s] \n[float!1!s] -\n[float!1!s] \n[float!1!s]
+.vec cube!vertices!7 -\n[float!1!s] \n[float!1!s] -\n[float!1!s] \n[float!1!s]
+
+.vec cube!vertices!0!color 0 0 0
+.vec cube!vertices!1!color 0 0 \n[float!1!s]
+.vec cube!vertices!2!color 0 \n[float!1!s] 0
+.vec cube!vertices!3!color 0 \n[float!1!s] \n[float!1!s]
+.vec cube!vertices!4!color \n[float!1!s] 0 0
+.vec cube!vertices!5!color \n[float!1!s] 0 \n[float!1!s]
+.vec cube!vertices!6!color \n[float!1!s] \n[float!1!s] 0
+.vec cube!vertices!7!color \n[float!1!s] \n[float!1!s] \n[float!1!s]
+
+.nr cube!vertices!size 8
+
+.nr cube!elements!0!0 0
+.nr cube!elements!0!1 3
+.nr cube!elements!0!2 2
+.nr cube!elements!1!0 2
+.nr cube!elements!1!1 1
+.nr cube!elements!1!2 0
+.nr cube!elements!2!0 0
+.nr cube!elements!2!1 1
+.nr cube!elements!2!2 5
+.nr cube!elements!3!0 5
+.nr cube!elements!3!1 4
+.nr cube!elements!3!2 0
+.nr cube!elements!4!0 1
+.nr cube!elements!4!1 2
+.nr cube!elements!4!2 6
+.nr cube!elements!5!0 6
+.nr cube!elements!5!1 5
+.nr cube!elements!5!2 1
+.nr cube!elements!6!0 2
+.nr cube!elements!6!1 3
+.nr cube!elements!6!2 7
+.nr cube!elements!7!0 7
+.nr cube!elements!7!1 6
+.nr cube!elements!7!2 2
+.nr cube!elements!8!0 3
+.nr cube!elements!8!1 0
+.nr cube!elements!8!2 4
+.nr cube!elements!9!0 4
+.nr cube!elements!9!1 7
+.nr cube!elements!9!2 3
+.nr cube!elements!10!0 4
+.nr cube!elements!10!1 5
+.nr cube!elements!10!2 6
+.nr cube!elements!11!0 6
+.nr cube!elements!11!1 7
+.nr cube!elements!11!2 4
+.nr cube!elements!size 12
+
+.viewport viewport 38 9 7854 -1 2000 -1
+.render viewport cube
+.log viewport
